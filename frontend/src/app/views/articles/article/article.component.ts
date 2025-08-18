@@ -9,6 +9,7 @@ import {HttpErrorResponse} from "@angular/common/http";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {DefaultResponseType} from "../../../../types/default-response.type";
 import {CommentsService} from "../../../shared/services/comments.service";
+import {finalize} from "rxjs";
 
 @Component({
   selector: 'app-article',
@@ -25,7 +26,7 @@ export class ArticleComponent implements OnInit {
   isLogged: boolean = true;
   textComment: string = '';
   countLike: string = '';
-  // countDisLike: number = 0;
+
 
   constructor(private activatedRoute: ActivatedRoute,
               private _snackBar: MatSnackBar,
@@ -85,95 +86,56 @@ export class ArticleComponent implements OnInit {
     })
   }
 
-  getFirstComments(params: {offset: number, article: string}) {
+  getFirstComments(params: { offset: number, article: string }) {
+    this.loader.show();
     this.comments = [];
     this.totalCountComments = 0;
     this.noComments = false;
     this.noMoreComments = false;
 
     this.commentsService.getCommentsForArticle(params)
+      .pipe(finalize(() => this.loader.hide()))
       .subscribe((data) => {
-        if (data.allCount && data.allCount > 0) {
+        if (data.allCount) {
           this.totalCountComments = data.allCount;
         }
-        if (data.comments && data.comments.length > 0) {
 
-          if (this.totalCountComments && this.totalCountComments > 3) {
-            for (let i = 0; i < 3; i++) {
-              this.comments.push({
-                id: data.comments[i].id,
-                text: data.comments[i].text,
-                date: data.comments[i].date,
-                likesCount: data.comments[i].likesCount,
-                dislikesCount: data.comments[i].dislikesCount,
-                user:
-                  {
-                    id: data.comments[i].user.id,
-                    name: data.comments[i].user.name
-                  }
-              })
-            }
-          } else if (this.totalCountComments && this.totalCountComments <= 3) {
-            this.comments = data.comments;
+        if (data.comments && data.comments.length > 0) {
+          this.comments = data.comments.slice(0, 3);
+
+          if (this.totalCountComments !== null && this.totalCountComments <= 3) {
             this.noMoreComments = true;
-          } else if (this.totalCountComments === 0) {
-            this.noMoreComments = true;
-            this.noComments = true;
           }
         } else {
-          this.noMoreComments = true;
           this.noComments = true;
+          this.noMoreComments = true;
         }
-      })
+      });
   }
 
   getMoreComments() {
     this.loader.show();
-    let lengthArrayComments: number = this.comments.length;
-    const params = {offset: lengthArrayComments, article: this.article.id};
+    const params = { offset: this.comments.length, article: this.article.id };
+
     this.commentsService.getCommentsForArticle(params)
+      .pipe(finalize(() => this.loader.hide()))
       .subscribe({
-        next: ((data) => {
+        next: (data) => {
           if (data.comments && data.comments.length > 0) {
+            this.comments = [...this.comments, ...data.comments];
 
-            if (data.comments.length >= 10) {
-              for (let i = 0; i <= 9; i++) {
-                this.comments.push({
-                  id: data.comments[i].id,
-                  text: data.comments[i].text,
-                  date: data.comments[i].date,
-                  likesCount: data.comments[i].likesCount,
-                  dislikesCount: data.comments[i].dislikesCount,
-                  user:
-                    {
-                      id: data.comments[i].user.id,
-                      name: data.comments[i].user.name
-                    }
-                })
-              }
-            } else if (data.comments.length < 10) {
-              data.comments.forEach(item => {
-                this.comments.push(item);
-              })
-              if (this.totalCountComments === this.comments.length) {
-                this.noMoreComments = true;
-              } else {
-                this.noMoreComments = false;
-              }
+            if (this.totalCountComments !== null) {
+              this.noMoreComments = this.comments.length >= this.totalCountComments;
             }
-          }
-
-        }),
-        error: ((errorResponse: HttpErrorResponse) => {
-          if (errorResponse.error && errorResponse.error.message) {
-            this._snackBar.open(errorResponse.error.message);
           } else {
-            this._snackBar.open('Ошибка получения дополнительных комментариев!');
+            this.noMoreComments = true;
           }
-        })
-      })
+        },
+        error: (errorResponse: HttpErrorResponse) => {
+          this._snackBar.open(errorResponse.error?.message || 'Ошибка загрузки комментариев!');
+        }
+      });
   }
-
   sendComment(value: string | null | undefined) {
     console.log(value)
     if (value) {
@@ -197,7 +159,6 @@ export class ArticleComponent implements OnInit {
             }
 
 
-
           }),
           error: ((errorResponse: HttpErrorResponse) => {
             if (errorResponse.error && errorResponse.error.message) {
@@ -210,7 +171,6 @@ export class ArticleComponent implements OnInit {
     } else {
       this._snackBar.open('Необходимо ввести текст комментария!');
     }
-
   }
 
 }

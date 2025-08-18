@@ -22,7 +22,7 @@ import {AuthInterceptor} from "./core/auth/auth.interceptor";
     LayoutComponent,
     HeaderComponent,
     FooterComponent,
-    MainComponent
+    MainComponent,
   ],
   imports: [
     BrowserModule,

@@ -146,5 +146,4 @@ export class PopupComponent implements OnInit {
   }
 
   protected readonly PopupStyleType = PopupStyleType;
-  // protected readonly CategoryURLType = CategoryURLType;
 }
